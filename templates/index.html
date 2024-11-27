@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geocoding App</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+        }
+    </style>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        function initMap() {
+            var map = L.map('map').setView([4.630387, -74.1376756], 13);  // Coordenadas de Kennedy, Bogotá
+
+            L.tileLayer('https://serviciosgis.catastrobogota.gov.co/arcgis/rest/services/Mapa_Referencia/mapa_base_3857/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '&copy; <a href="https://www.ideca.gov.co/">IDECA</a>'
+            }).addTo(map);
+
+            var customIcon = L.icon({
+                iconUrl: 'https://example.com/path/to/icon.png',  // Reemplaza con la URL de tu icono
+                iconSize: [38, 38],  // Tamaño del icono
+                iconAnchor: [22, 38],  // Punto del icono que corresponde a la posición del marcador
+                popupAnchor: [-3, -38]  // Punto desde el cual se abrirá el popup relativo al icono
+            });
+
+            document.getElementById('geocodeBtn').addEventListener('click', function() {
+                var address = document.getElementById('address').value;
+                fetch(`/geocode?address=${address}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error);
+                        } else {
+                            var location = [parseFloat(data.LATITUD), parseFloat(data.LONGITUD)];
+                            map.setView(location, 13);
+                            L.marker(location, {icon: customIcon}).addTo(map)
+                              .bindPopup(`<b>${address}</b><br>Lat: ${data.LATITUD}, Lng: ${data.LONGITUD}`).openPopup();
+                        }
+                    });
+            });
+
+            document.getElementById('routeBtn').addEventListener('click', function() {
+                var start = document.getElementById('start').value;
+                var end = document.getElementById('end').value;
+                var vehicle = document.getElementById('vehicle').value;
+
+                fetch(`/route?start=${start}&end=${end}&vehicle=${vehicle}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error);
+                        } else {
+                            var route = data.paths[0];
+                            var coordinates = route.points.coordinates.map(function(coord) {
+                                return [coord[1], coord[0]];
+                            });
+
+                            var polyline = L.polyline(coordinates, {color: 'blue'}).addTo(map);
+                            map.fitBounds(polyline.getBounds());
+                        }
+                    });
+            });
+
+            document.getElementById('searchChipBtn').addEventListener('click', function() {
+                var chip = document.getElementById('chip').value;
+
+                fetch(`/search_chip?chip=${chip}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error);
+                        } else {
+                            // Manejar la respuesta de búsqueda de CHIP
+                            console.log(data);
+                        }
+                    });
+            });
+
+            document.getElementById('searchPlaceBtn').addEventListener('click', function() {
+                var query = document.getElementById('query').value;
+
+                fetch(`/search_place?q=${query}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            alert(data.error);
+                        } else {
+                            // Manejar la respuesta de búsqueda de lugar
+                            console.log(data);
+                        }
+                    });
+            });
+
+            map.on('click', function(e) {
+                var latlng = e.latlng;
+                L.marker(latlng, {icon: customIcon}).addTo(map)
+                  .bindPopup(`<b>Custom Marker</b><br>Lat: ${latlng.lat}, Lng: ${latlng.lng}`).openPopup();
+            });
+        }
+    </script>
+</head>
+<body onload="initMap()">
+    <h1>Geocoding App</h1>
+    <input type="text" id="address" placeholder="Enter address">
+    <button id="geocodeBtn">Geocode</button>
+    <br>
+    <input type="text" id="start" placeholder="Start point (lat,lng)">
+    <input type="text" id="end" placeholder="End point (lat,lng)">
+    <select id="vehicle">
+        <option value="car">Car</option>
+        <option value="bike">Bike</option>
+        <option value="foot">Foot</option>
+    </select>
+    <button id="routeBtn">Calculate Route</button>
+    <br>
+    <input type="text" id="chip" placeholder="Enter CHIP code">
+    <button id="searchChipBtn">Search CHIP</button>
+    <br>
+    <input type="text" id="query" placeholder="Enter search query">
+    <button id="searchPlaceBtn">Search Place</button>
+    <div id="map"></div>
+</body>
+</html>
